@@ -2,9 +2,6 @@
 from tkinter import *                                                   #Standart                        
 from PIL import Image,ImageTk                                           ### Instalation needed
 from tkinter.filedialog import askopenfilenames,askopenfilename         # Comes with TK inter
-import webbrowser                                                       # Standart
-import numpy as np                                                      # Pseudo Stadard Package
-import os                                                               # Stanart
 import datetime                                                         # Standart      
 import matplotlib.pyplot as plt                                         # Standart
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -28,11 +25,15 @@ class PARENTGUI(Frame):
             - basic functions
       '''
             
-      def __init__(self,values,master=None):
+      def __init__(self,values,master=None,saturation=0):
+          
+         
           ''' Initialize window and create Frame'''
           # Set main Frame and window
           Frame.__init__(self,master,background="white")     # this is main Frame
           self.master=master              # main window
+          self.picture=PICTURE()          # Class for Fotos
+          self.saturation_val=70          # Set default saturation
           self.values=values
           # define constants
           self.width=800            # Window length
@@ -83,7 +84,11 @@ class PARENTGUI(Frame):
                  bname=bname.ljust(40)
                  bname=bname[:40]
            
-           self.update_btn_text(button,bname)         
+           self.update_btn_text(button,bname)
+           # check for same size
+           if(not(self.__check_size)):
+                  window=ERROR(self.master,3)
+                  
       def __menu(self):
           ''' Function to create menu bar'''
           # creating a menu instance
@@ -111,6 +116,9 @@ class PARENTGUI(Frame):
 
           #added "file" to our menu
           menu.add_cascade(label="Help", menu=helping)
+          
+      def __check_size(self):
+         return False
       
       def client_exit(self):
            ''' Function to exit'''
@@ -191,10 +199,10 @@ class SIDESIDE(Frame):
               self.pack(fill=BOTH,expand=1)
               self.main.resizable(0, 0)
                
-
         def show(self):
               self.original_frame.update()
               self.original_frame.deiconify()
+              
 
 
 class VALUES():
@@ -202,9 +210,11 @@ class VALUES():
       All other classes will inherit this class ti change the values directely
       '''
             
-      def __init__(self,N=5,png=[]):
-          self.N=N                  # Default numbers button
-          self.png=[None]*self.N       # Create Empty list for Powwepoints
+      def __init__(self,N=5,png=[],size=[0,0],N_png=0):
+          self.N=N                     # Default numbers button
+          self.png=[None]*self.N       # Create Empty list for png
+          self.size=size               # Size of first loaded picture
+          self.N_png=N_png             # Number of loaded png
 
           # Fill List of Powerpoint names with given names, if list png is not empty
           if(len(png)!=0):
@@ -217,7 +227,7 @@ class VALUES():
 
 
       def return_values(self):
-            ''' Function to return all calss properties'''
+            ''' Function to return all class properties'''
             # get rid of None type objects ind png and kt_names
             png=self.__png_names()
             return(
@@ -255,7 +265,7 @@ class MAINGUI():
 ######## GUI1 ################### GUI1 ################### GUI1 ###################
 class GUI1(PARENTGUI):
    ''' Class for page 1'''
-   def __init__(self, values,master=None,):
+   def __init__(self, values,master=None,N=5):
           PARENTGUI.__init__(self,values,master)
           self.filename=[None]*self.values.N
           # Set main Frame and window
@@ -288,15 +298,20 @@ class GUI1(PARENTGUI):
 
    def __addmore_files(self):
       ''' Function to add more files'''
+      # Show warning if they really want it:
       #self.open_file(
       self.values.N+=1
-      self.master.withdraw()
-      # update screen
-      self.master.deiconify()
-      error=ERROR(self.master,3)
+      self.values.png.append(None)
+      self.master.destroy()
+      root2= Tk()
+      window=GUI1(self.values,root2,self.values.N)
+      # Check for the size
+      
+      window=WARNING(root2,1)
+      
 
 
-   def __open_page2(self,values,N=5,png=[]):
+   def __open_page2(self,values):
       ''' Function to go to page 2'''
             
       if(self.__check_page()):
@@ -347,15 +362,19 @@ class GUI1(PARENTGUI):
                   else:
                         last_name_index=i
             # Only None types       
-            if(counter>self.values.N):
+            if(counter>self.values.N-1):
                         window=ERROR(self.master,0)
                         return(False)
             # Wrong order
             if(first_none_index<last_name_index):
                         window=ERROR(self.master,1)
                         return(False)
+                        
+
             
             else:
+                  # Set number of final png files
+                  self.values.N_png=self.values.N-counter
                   return(True)
 
 
@@ -364,13 +383,13 @@ class GUI1(PARENTGUI):
  ######## GUI2 ################### GUI2 ################### GUI2 ###################         
 class GUI2(PARENTGUI):
       ''' Define class for second page'''
-      def __init__(self, values,master):
+      def __init__(self, values,master,saturation_val=70):
           PARENTGUI.__init__(self, values,master)
-          
-          self.value=values
-          self.picture=PICTURE()
-          self.saturation=DoubleVar()
-          self.saturation_init=70
+          self.saturation_val=saturation_val    # Initial value of saturation
+          self.value=values                     # names of png
+          self.label_img=None                   # Gloabal fotolabel for deleting
+          self.executed=False                   # Checks if variable request was executed
+          self.saturation=DoubleVar()           # Create slider object 
       
 
           # Set main Frame and window
@@ -378,53 +397,63 @@ class GUI2(PARENTGUI):
 
       def __init_window(self):
           self.master.title("Binarizing picture")
-          label_width=20
+
+          # Window parametery
+          label_width=20                  
           eingabe_loc=400
           pic_locx=50
           pic_locy=150
   
 
           # Add slider and Button for adjusting binary value
-          showButton=Button(self, text='Show',bg="white",font="Calibri 15 bold",fg="red",relief="raised", command=lambda:self.__show_picture())
-          showButton.place(x=350,y=85)
+          showButton=Button(self, text='Show',bg="white",font="Calibri 15 bold",fg="red",relief="raised", command=lambda:self.__update_picture())
+          showButton.place(x=350,y=65)
           slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=0., to=100,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.saturation)
-          slider_cont.set(self.saturation_init)
-          slider_cont.place(x=200,y=40)
+          slider_cont.set(self.saturation_val)
+          slider_cont.place(x=200,y=20)
 
 
           # Add photo
-          self.__add_binary_photo(self.values.png[0],self.saturation_init,pic_locx,pic_locy)
-
-         
+          self.__add_binary_photo(self.saturation_val)
 
           # Add botton finsih and back
-          finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__next(dummie=1))
+          finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__open_page3())
           finishButton.place(x=500,y=400)
-          backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page1(self.values))
+          backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page1())
           backButton.place(x=50,y=420)
 
 
 
 
-      def __add_binary_photo(self,name,threshold=0.8,posx=0,posy=0,x_max=500,y_max=300):
+      def __add_binary_photo(self,threshold=0.8,x_max=600,y_max=250):
+            ''' Takes
+                  threshold := threshold value
+                  x_max     := Max value of figure in x direction
+                  y_max     := Max value of figure in y direction
+
+               Does
+                     Load and binarize first image
+                     Rescale image
+                     Convert to Tkinter
 
 
-            # resize
-            # Calculate the resize value. Later picture will be bigger again
-            x_length,y_length=np.shape(bin_img)
-            scale=max(x_length/x_max,y_length,y_max)        # Find scaling
-            if(scale>1):
-                  scal_img=self.picture.rescale_image(bin_img,scale)
+               Returns
+                     A scaled binarized picture at a location
+            '''
             
-            # Get filetype 
+            ## Get name
+            name=self.values.png[0]
+            ## load image
+            img = mpimg.imread("./"+name)
+
+            ## Get filetype 
             filename, file_extentions = os.path.splitext(name)
-            print(file_extentions)
             # Check if jpeg or png and photo binarize it
             if(file_extentions==".png"):
                   # Adapt threshold to imagetype
                   threshold/=100
-                  bin_img=self.picture.binarize_picture_png("./"+name,threshold)
-            if(file_extentions==".jpeg"):
+                  bin_img=self.picture.binarize_picture_png(img,threshold)
+            elif(file_extentions==".jpeg"):
                   # Adapt threshold to imagetype
                   threshold*=2
                   bin_img=self.picture.binarize_picture_jpeg(picture,threshold)
@@ -432,28 +461,216 @@ class GUI2(PARENTGUI):
                   # Wrong format error
                   window=ERROR(self.master,5)
                   
-
-
-            # Display picture
-            photo = ImageTk.PhotoImage(scal_bin_img)
-            label = Label(self,image=photo)
-            label.image=photo
-            label.place(x=posx,y=posy)
-
+            ## Resize 
+            # Calculate the resize value. Later picture will be bigger again
+            self.values.size=np.shape(bin_img)              # Set global value size of picture
+            x_length=self.values.size[0]                    # Define x length
+            y_length=self.values.size[1]                    # Define y length
+            scale=min(x_max/x_length,y_max/y_length)        # Find scaling
+            if(scale<1):
+                  bin_img=self.picture.rescale_image(bin_img,scale)    # Make cmaller for bigger pictures
+                  
+            if(scale>1):
+                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
+                  bin_img=self.picture.rescale_image(bin_img,scale)
+     
+            ## Display picture
+            img = Image.fromarray(bin_img*255)                        # Convert to TKinter format
+            photo = ImageTk.PhotoImage(img)                       # Convert to TKinter format
+            self.label_img = Label(self,image=photo)
+            self.label_img.image=photo
             
-      
+            # find location to place it
+            posx,posy=self.__put_in_middle(bin_img)
+            self.label_img.place(x=posx,y=posy)
+            
+
+      def __clear_label_image(self):
+          ''' Empties label content'''
+          self.label_img.config(image='')
+            
+      def __put_in_middle(self,bin_img):
+            ''' Takes image
+                Uses window
+                Returns values to place picture
+            '''
+
+            x_length,y_length=np.shape(bin_img)
+
+            x_loc=int((self.width-x_length)/2)
+            y_loc=int((self.hight-y_length-30)/2)
+            return x_loc,y_loc
 
 
-      def __open_page1(self,values,master=None,N=8,png=[]):
+      def __open_page1(self):
             ''' Function to go to page 2'''         
             self.master.destroy()
             root2= Tk()
-            window2=GUI1(values,root2)
+            window2=GUI1(self.values,root2)
 
-      def __show_picture(self):
+      def __update_picture(self):
+            ''' Gets new saturation value
+                Does
+                  Empty picture label container
+                  
+                Returns
+                   Updated binarized picture
+            '''
+
+            # Set was executed true
+            self.executed=True 
+            
+            # Get value
             val=self.saturation.get()
+            # Clear figure
+            self.__clear_label_image()
+            
+
+            # Show new figure
+            self.__add_binary_photo(val)
+            
+
+      def __open_page3(self):
+            ''' Function to go to page 3'''      
+            if(self.__check_page()):
+                  self.master.destroy()   # Destroy window
+                    
+                  root3= Tk()             # Open new window
+                  window2=GUI3(self.values,root3,self.saturation.get())
+
+            
+      def __next(self):
+            if(self.__check_page()==True):
+                  self.master.destroy()
+         # Now return all values
+         
+      def __check_page(self):
+            # Check if self.saturation was updated
+            if(not(self.executed)):
+                  window=WARNING(self.master,0)
+                  
+            
+            return(True)
+
+################################### GUI3 #################################### GUI3 ############################
+class GUI3(PARENTGUI):
+      ''' Define class for second page'''
+      def __init__(self, values,master,saturation):
+          PARENTGUI.__init__(self, values,master)
+          self.value=values               # names of png
+          self.saturation_val=saturation  # Saturation
+          self.width_stribs_val=2         # Define width of stribe
+          self.label_img=None             # Gloabal fotolabel for deleting
+          self.stribes=DoubleVar()        # Create slider object
+      
+
+          # Set main Frame and window
+          self.__init_window()
+
+      def __init_window(self):
+          self.master.title("Binarizing picture")
+
+          # Window parametery
+          label_width=20                  
+          eingabe_loc=400
+          pic_locx=50
+          pic_locy=150
+  
+
+          # Add slider and Button for adjusting binary value
+          showButton=Button(self, text='Show',bg="white",font="Calibri 15 bold",fg="red",relief="raised", command=lambda:self.__update_picture())
+          showButton.place(x=350,y=65)
+          slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=0, to=10,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.stribes)
+          slider_cont.set(self.width_stribs_val)
+          slider_cont.place(x=200,y=20)
+
+
+          # Add photo
+          self.__add_stribe_photo(self.width_stribs_val)
+
+          # Add botton finsih and back
+          finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:__open_page3())
+          finishButton.place(x=500,y=400)
+          backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page2(self.values))
+          backButton.place(x=50,y=420)
+
+
+
+
+      def __add_stribe_photo(self,s_width,x_max=600,y_max=250):
+            ''' Takes
+                  s_width := width of the stribes
+                Uses
+                  N       := Number of png files
+                  size    := size of first file 
+            '''            
+            pattern=self.picture.create_stripes(self.values.size,self.values.N_png,s_width)
+
+            ## Resize 
+            # Calculate the resize value. Later picture will be bigger again
+            x_length,y_length=np.shape(pattern)
+            scale=min(x_max/x_length,y_max/y_length)        # Find scaling
+            if(scale<1):
+                  pattern=self.picture.rescale_image(pattern,scale)    # Make cmaller for bigger pictures
+                  
+            if(scale>1):
+                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
+
+                  pattern=self.picture.rescale_image(pattern,scale)
+     
+            ## Display picture
+            img = Image.fromarray(pattern*255)                    # Convert to TKinter format
+            photo = ImageTk.PhotoImage(img)                       # Convert to TKinter format
+            self.label_img = Label(self,image=photo)
+            self.label_img.image=photo
+            
+            # find location to place it
+            posx,posy=self.__put_in_middle(pattern)
+            self.label_img.place(x=posx,y=posy)
+
+            
+
+      def __clear_label_image(self):
+          ''' Empties label content'''
+          self.label_img.config(image='')
+            
+      def __put_in_middle(self,bin_img):
+            ''' Takes image
+                Uses window
+                Returns values to place picture
+            '''
+
+            x_length,y_length=np.shape(bin_img)
+
+            x_loc=int((self.width-x_length)/2)
+            y_loc=int((self.hight-y_length-30)/2)
+            return x_loc,y_loc
+
+
+      def __open_page2(self):
+            ''' Function to go to page 2'''         
+            self.master.destroy()
+            root2= Tk()
+            window2=GUI2(values,root2,self.saturation)
+
+      def __update_picture(self):
+            ''' Gets new saturation value
+                Does
+                  Empty picture label container
+                  
+                Returns
+                   Updated binarized picture
+            '''
+            
+            # Get value
+            val=int(self.stribes.get())
             print(val)
-            #__add_binary_photo(self,name,val,posx,posy)
+            # Clear figure
+            self.__clear_label_image()
+            
+
+            # Show new figure
+            self.__add_stribe_photo(val)
             
 
             
@@ -467,51 +684,53 @@ class GUI2(PARENTGUI):
 
 
 
-
 ######## WARNING ################### WARNING ################### WARNING ###################
               
 class WARNING(SIDESIDE):
-      ''' Class for warnings'''
-      def __init__(self, original,Nr):
+        ''' Class for warnings'''
+        def __init__(self, original,Nr):
               """Constructor"""
               SIDESIDE.__init__(self, original)
               self.Nr=Nr
-             
+              self.decision=False
               self.main.title("Warning Nr. "+ str(self.Nr))#
               T = Text(self.main, height=10, width=45)
               T.place(x=20,y=20)
               ok=self.__warning_handler(T)
-
-
-             
               backbtn = Button(self, text="Back", bg="red",width=8,font="Calibri 20",fg="white",relief="raised",command=lambda:self.__back()).place(x=20,y=240)
               okbtn = Button(self, text="OK", bg="white",width=6,font="Calibri 15",fg="red",relief="raised",command=lambda:self.__ok()).place(x=270,y=245)
-              
 
-      def __ok(self):
-            self.original_frame.destroy()
-            self.main.destroy()
-            return(True)
-      
-      def __back(self):           
+        def __back(self):           
               self.main.destroy()
               self.show()
+              
+        def __ok(self):
+              self.decision=True
+              self.main.destroy()
+              self.show()
+
+        def __return_decision(self):
+             return self.decision
+              
             
-      def __warning_handler(self,T):
+        def __warning_handler(self,T):
               if(self.Nr==0):
-                    text="Achtung keinen Moderator angegeben!"
+                    text="Caution. Default saturation was used"
                     T.insert(END,text)
                     return 0  
                     
               if(self.Nr==1):
-                    text="Achtung keinen Protokollanten angeben!"
+                    text="The best number for this illusion is between 2 and 5."
                     T.insert(END,text)
                     return 0                                    
               else:
-                    text="Unbekannter Fehler. \nBitte Marius Neugschwender kontaktieren"
+                    text="Unbekannter error. \nContact Marius Neugschwender"
                     T.insert(END,text)
-                    #unknown erro pleas contact               
-      
+                    #unknown erro pleas contact     
+
+
+              
+
 
 
 ######## ERROR ################### ERROR ################### ERROR ###################
@@ -547,7 +766,7 @@ class ERROR(SIDESIDE):
                     T.insert(END,text)
                     return 0
               if(self.Nr==3):
-                    text="The best number for this illusion is between 2 and 5."
+                    text="Pictures need to have the same size!"
                     T.insert(END,text)
                     return 0
               if(self.Nr==4):
@@ -589,7 +808,6 @@ class PICTURE():
               Creates: Greyscale -> binarixed picture
           '''
       
-          #img = mpimg.imread(name)
           # Convert to binary 
           gray = self.rgb2gray(img)
           bin_img=1.0 * (gray > threshold)
@@ -631,12 +849,10 @@ class PICTURE():
           return size
 
       def create_stripes(self,size,N,s_width=2):
-          print("Creating Moire pattern")
-          
           # Create array
-          N_s=np.zeros([size[0],(N)*s_width])
+          N_s=np.zeros([size[0],N*s_width])
           # Fill with ones
-          N_s[:,0:self.s_width]=np.ones([size[0],s_width])
+          N_s[:,0:s_width]=np.ones([size[0],s_width])
 
           # multiply
           pattern=np.tile(N_s,int(np.floor(size[1]/(N*self.s_width))))
@@ -646,10 +862,14 @@ class PICTURE():
           return pattern
           
                                   
-      def rescale_image(self,img,imgScale=1):
-          height, width, depth = img.shape
-          newX,newY = img.shape[1]*imgScale, img.shape[0]*imgScale
-          newimg = cv2.resize(img,(int(newX),int(newY)))
+      def rescale_image(self,bin_img,imgScale=1):
+          ''' Takes
+                  Rescales binarized image only
+              Retruns
+                  Resized picture'''
+          height, width = bin_img.shape
+          newX,newY = bin_img.shape[1]*imgScale, bin_img.shape[0]*imgScale
+          newimg = cv2.resize(bin_img,(int(newX),int(newY)))
           return newimg                  
                    
 
