@@ -33,7 +33,6 @@ class PARENTGUI(Frame):
           Frame.__init__(self,master,background="white")     # this is main Frame
           self.master=master              # main window
           self.picture=PICTURE()          # Class for Fotos
-          self.saturation_val=70          # Set default saturation
           self.values=values
           # define constants
           self.width=800            # Window length
@@ -261,11 +260,14 @@ class VALUES():
       All other classes will inherit this class ti change the values directely
       '''
             
-      def __init__(self,N=5,png=[],size=[0,0],N_png=0):
-          self.N=N                     # Default numbers button
-          self.png=[None]*self.N       # Create Empty list for png
-          self.size=size               # Size of first loaded picture
-          self.N_png=N_png             # Number of loaded png
+      def __init__(self,N=5,png=[],size=[0,0],N_png=0,output_loc="./Output",w_stribes=5,saturation=70):
+          self.N=N                        # Default numbers button
+          self.png=[None]*self.N          # Create Empty list for png
+          self.size=size                  # Size of first loaded picture
+          self.N_png=N_png                # Number of loaded png
+          self.output_loc=output_loc      # Output location
+          self.width_stribs_val=w_stribes # Width of stribe
+          self.saturation_val=saturation  # Saturation level for binarizing
           
 
           # Fill List of Powerpoint names with given names, if list png is not empty
@@ -437,7 +439,6 @@ class GUI2(PARENTGUI):
       ''' Define class for second page'''
       def __init__(self, values,master,saturation_val=70):
           PARENTGUI.__init__(self, values,master)
-          self.saturation_val=saturation_val    # Initial value of saturation
           self.value=values                     # names of png
           self.label_img=None                   # Gloabal fotolabel for deleting
           self.executed=False                   # Checks if variable request was executed
@@ -461,12 +462,12 @@ class GUI2(PARENTGUI):
           showButton=Button(self, text='Show',bg="white",font="Calibri 15 bold",fg="red",relief="raised", command=lambda:self.__update_picture())
           showButton.place(x=350,y=65)
           slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=0., to=100,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.saturation)
-          slider_cont.set(self.saturation_val)
+          slider_cont.set(self.values.saturation_val)
           slider_cont.place(x=200,y=20)
 
 
           # Add photo
-          self.__add_binary_photo(self.saturation_val)
+          self.__add_binary_photo(self.values.saturation_val)
 
           # Add botton finsih and back
           finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__open_page3())
@@ -626,10 +627,10 @@ class GUI3(PARENTGUI):
       def __init__(self, values,master,saturation):
           PARENTGUI.__init__(self, values,master)
           self.value=values               # names of png
-          self.saturation_val=saturation  # Saturation
-          self.width_stribs_val=2         # Define width of stribe
           self.label_img=None             # Gloabal fotolabel for deleting
           self.stribes=DoubleVar()        # Create slider object
+          self.pattern=np.zeros([1,1])    # Pattern object
+          self.output=np.zeros([1,1])     # List of moire images for gif
       
 
           # Set main Frame and window
@@ -649,15 +650,15 @@ class GUI3(PARENTGUI):
           showButton=Button(self, text='Show',bg="white",font="Calibri 15 bold",fg="red",relief="raised", command=lambda:self.__update_picture())
           showButton.place(x=350,y=65)
           slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=1, to=10,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.stribes)
-          slider_cont.set(self.width_stribs_val)
+          slider_cont.set(self.values.width_stribs_val)
           slider_cont.place(x=200,y=20)
 
 
           # Add photo
-          self.__add_stribe_photo(self.width_stribs_val)
+          self.__add_stribe_photo(self.values.width_stribs_val)
 
           # Add botton finsih and back
-          finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:__show_preview())
+          finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__show_preview())
           finishButton.place(x=500,y=400)
           backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page2(self.values))
           backButton.place(x=50,y=420)
@@ -665,30 +666,15 @@ class GUI3(PARENTGUI):
 
 
 
-      def __add_stribe_photo(self,s_width,x_max=600,y_max=250):
+      def __add_stribe_photo(self,val_width,x_max=600,y_max=250):
             ''' Takes
                   s_width := width of the stribes
                 Uses
                   N       := Number of png files
                   size    := size of first file
-            '''            
-            s_width_pix=self.__stribe_sizer(s_width)                                  # Value of one corresonds to N pixels
-            # Load image
-            name=self.values.png[0]
-            img = mpimg.imread("./"+name)
-
-            # Binarize img
-            bin_img=self.__binarize_img(img,self.saturation_val,name)
-            
-            
-            # Create pattern
-            pattern=self.picture.create_stripes(self.values.size,self.values.N_png,s_width_pix)
-            plt.imshow(pattern)
-            plt.show()
-
-            # Create Moire
-            moire=moire=self.picture.one_to_zero(bin_img)*(pattern)     # Create Moire
-            moire=self.picture.one_to_zero(moire)                        # Invert because 1 is black
+            '''
+            ## Make moire
+            moire=self.__moire(val_width)
 
             ## Resize
             moire=self.__resize_bin(moire)
@@ -704,6 +690,36 @@ class GUI3(PARENTGUI):
             self.label_img.place(x=posx,y=posy)
 
 
+            
+
+      def __moire(self,val_width):
+            ''' Takes
+                  val_width     := Input of usuer
+                Returns
+                  Moire picture
+            '''
+
+            
+            s_width_pix=self.__stribe_sizer(val_width)            # Value of one corresonds to N pixels
+            # Load image
+            name=self.values.png[0]
+            img = mpimg.imread("./"+name)
+
+            # Binarize img
+            bin_img=self.__binarize_img(img,self.values.saturation_val,name)
+            
+            
+            # Create pattern
+            pattern=self.picture.create_stripes(self.values.size,self.values.N_png,s_width_pix)
+
+            # Save pattern object
+            self.pattern=pattern
+
+            # Create Moire
+            moire=moire=self.picture.one_to_zero(bin_img)*(pattern)     # Create Moire
+            moire=self.picture.one_to_zero(moire)                       # Invert because 1 is black
+            return moire
+            
 
       def __stribe_sizer(self,N_s):
             ''' Calculates a sensful range of stribe_width according to the picture size
@@ -751,16 +767,13 @@ class GUI3(PARENTGUI):
                Returns
                   s_wdth:= best estimaton of s_width for N stribes given a photo with size(nxm)
             '''
-            x_size=self.values.size[0]
+            x_size=self.values.size[1]                                  # !!! np.shape definition x,y,z=np.shape() x is the vertical and y the horizontal
             # calculate s_width
             ''' One cell contains N_s patern lik this:
             w1 ... ws_width | w1 .... ws_width | ...N_png times... |  w1 ... ws_width
             -> s_width=x_size/(N_s*self.values.N_png)
             '''
-            print(x_size)
-            print(N_s,N_s*self.values.N_png)
             s_width=int(round(x_size/(N_s*self.values.N_png)))     
-            print(s_width)  
             return s_width
 
             
@@ -832,31 +845,139 @@ class GUI3(PARENTGUI):
             
             # Get value
             val=int(self.stribes.get())
+
+            # Upate value in values class
+            self.values.width_stribs_val=val
+            
             # Clear figure
             self.__clear_label_image()        
 
             # Show new figure
             self.__add_stribe_photo(val)
 
-      def __create_picturs(self):
+      def __save_picturs(self):
             ''' Creates the sliced moire pictues form pattern
 
 
             '''
-            for i in range(0,self.values.N_png):                  # Iteratethrough all pictues
-                  if(i!=0):
-                        pattern=np.roll(pattern,s_width)          # Roll pattern       
-                  
-                  moire=one_to_zero(bin_img)*(pattern)            # Use pattern to create moire
-                  imageio.imsave('./Output/'+filename+'_moire_test'+str(i)+file_extentions, one_to_zero(moire))
 
+            # Create Output variable
+            output=np.zeros(self.values.size)
+            
+            for i in range(0,self.values.N_png):
+               # Load image
+               name=self.values.png[i]
+               img = mpimg.imread("./"+name)
+
+               # Binarize img
+               bin_img=self.__binarize_img(img,self.values.saturation_val,name)
+    
+               # Save load and save pattern
+               if(i==0):
+                     # Get pattern
+                     pattern=self.pattern
+                     # Save pattern
+                     imageio.imsave(self.values.output_loc+'/pattern.png', pattern)
+                     
+               # Don't save pattern again
+               else:
+                     pattern=np.roll(pattern,self.__stribe_sizer(self.values.width_stribs_val))    # Roll pattern to make different pictures visible maybe better save other varibale :)
+
+               
+               # Create Moire
+               moire=self.picture.one_to_zero(bin_img)*(pattern)           # Create Moire
+               # Add to output
+               output+=moire
+               
+
+            # Binarize again  // Overlaps means values higher then 1
+            output=output>0.5
+
+            # Save output
+            self.output=output
+            
+            output=self.picture.one_to_zero(output)                             # Invert because 1 is black
+            # Save  image
+            imageio.imsave(self.values.output_loc+'/moire.png', output)
 
             
       def __show_preview(self):
-            if(self.__check_page()==True):
-                  self.master.destroy()
-         # Create and save pictures
+
+         # Empty output folder
+         self.__delete_all_files()
+
+         # Save images and pattern
+         self.__save_picturs()
+               
+         # Make and save gif animation
+         self.__gif_animation()
+
+         #self.__open_page4()
+
+      
+         if(self.__check_page()==True):
+            self.master.destroy()
+
+      
+
+      def __gif_animation(self,duration=500,loop=2):
+            # create a tuple of display durations, one for each frame
+            durations = duration
+
+            # load all the static images into a list
+            gif_filepath = self.values.output_loc+'/animated-moire.gif'
+
+            # Create list of images
+            images=[]
+            for i in range(0,self.values.N_png):  
+               # Save load and save pattern
+               if(i==0):
+                     # Get pattern
+                     pattern=self.pattern
+                     
+               # Don't save pattern again
+               else:
+                     pattern=np.roll(pattern,int(self.__stribe_sizer(self.values.width_stribs_val)/5))    # Roll pattern to make different pictures visible maybe better save other varibale :)
+               # add pattern to output
+               image=self.output+self.picture.one_to_zero(pattern)
+               image=self.picture.one_to_zero(image)
+               image = Image.fromarray(image*255)                    # Convert to TKinter format
+               images.append(image)
+
+
+            # save as an animated gif
+            gif = images[0]
+            gif.info['duration'] = durations                                              #ms per frame
+            gif.info['loop'] = loop                                                       #how many times to loop (0=infinite)
+            gif.save(fp=gif_filepath, format='gif', save_all=True, append_images=images[1:])
+
+            # verify that the number of frames in the gif equals the number of image files and durations
+            if(not(Image.open(gif_filepath).n_frames == len(images))):
+               window=ERROR(self.master,6)
+            
+            
+
+               
          
+
+      def __delete_all_files(self):
+            ''' Function deletes gif and png files in output dictionary'''
+            
+            # delete old png files
+            filelist = [ f for f in os.listdir(self.values.output_loc) if f.endswith(".png") ]
+            for f in filelist:
+                os.remove(os.path.join(self.values.output_loc, f))
+                
+            # Delete old gif list
+            filelist = [ f for f in os.listdir(self.values.output_loc) if f.endswith(".png") ]
+            for f in filelist:
+                os.remove(os.path.join(self.values.output_loc, f))
+
+                
+
+
+
+
          
       def __check_page(self):
             return(True)
@@ -898,18 +1019,18 @@ class WARNING(SIDESIDE):
                     T.insert(END,text)
             
                     
-              if(self.Nr==1):
+              elif(self.Nr==1):
                     text="The best number for this illusion is between 2 and 5."
                     T.insert(END,text)
 
 
                                   
-              if(self.Nr==2):
+              elif(self.Nr==2):
                     text="Your picture is quite big!\n"+"This may cause problems\n"+"Recommended are max 3300 pixels"
                     T.insert(END,text)
                     return 0
                                   
-              if(self.Nr==3):
+              elif(self.Nr==3):
                     text="Your picture is quite small!\n"+"This may cause problems\n"+"Recommended are min 30 pixels"
                     T.insert(END,text)
                     return 0   
@@ -947,28 +1068,33 @@ class ERROR(SIDESIDE):
                     text="You have to choose at least two pictures"
                     T.insert(END,text)
                     return 0            
-              if(self.Nr==1):
+              elif(self.Nr==1):
                     text="Don't leave blanck sides \n"
                     T.insert(END,text)
                     return 0
 
 
-              if(self.Nr==2):
+              elif(self.Nr==2):
                     text="Keine Dateien ausgewählt. \nBitte Dateien auswählen!"
                     T.insert(END,text)
                     return 0
-              if(self.Nr==3):
+              elif(self.Nr==3):
                     text="Pictures need to have the same size!"
                     T.insert(END,text)
                     return 0
-              if(self.Nr==4):
+              elif(self.Nr==4):
                     text="Bitte Titel des KT's angeben!"
                     T.insert(END,text)
                     return 0
-              if(self.Nr==5):
+              elif(self.Nr==5):
                     text="Wrong format, only png and jpeg are accepted"
                     T.insert(END,text)
-                    return 0  
+                    return 0
+               
+              elif(self.Nr==6):
+                    text="WSomething is wrong with the gif. \n"+"Numbers do not match!"
+                    T.insert(END,text)
+                    return 0
                                                   
               else:
                     text="Unknown error. \nPlease contact Marius Neugschwender"
@@ -1085,8 +1211,6 @@ class PICTURE():
 
               # Get length
               size=self.length_check(bin_img)
-
-
               
               # Load each picture check size and save size, if size is not the same show error
               # Create test pattern only one tyme
