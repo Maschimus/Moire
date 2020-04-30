@@ -362,7 +362,7 @@ class GUI1(PARENTGUI):
                   else:
                         last_name_index=i
             # Only None types       
-            if(counter>self.values.N-1):
+            if(counter>self.values.N-2):
                         window=ERROR(self.master,0)
                         return(False)
             # Wrong order
@@ -446,37 +446,17 @@ class GUI2(PARENTGUI):
             ## load image
             img = mpimg.imread("./"+name)
 
-            ## Get filetype 
-            filename, file_extentions = os.path.splitext(name)
-            # Check if jpeg or png and photo binarize it
-            if(file_extentions==".png"):
-                  # Adapt threshold to imagetype
-                  threshold/=100
-                  bin_img=self.picture.binarize_picture_png(img,threshold)
-            elif(file_extentions==".jpeg"):
-                  # Adapt threshold to imagetype
-                  threshold*=2
-                  bin_img=self.picture.binarize_picture_jpeg(picture,threshold)
-            else:
-                  # Wrong format error
-                  window=ERROR(self.master,5)
-                  
+            # Binarize img
+            bin_img=self.__binarize_img(img,threshold,name)
+            
             ## Resize 
-            # Calculate the resize value. Later picture will be bigger again
             self.values.size=np.shape(bin_img)              # Set global value size of picture
-            x_length=self.values.size[0]                    # Define x length
-            y_length=self.values.size[1]                    # Define y length
-            scale=min(x_max/x_length,y_max/y_length)        # Find scaling
-            if(scale<1):
-                  bin_img=self.picture.rescale_image(bin_img,scale)    # Make cmaller for bigger pictures
-                  
-            if(scale>1):
-                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
-                  bin_img=self.picture.rescale_image(bin_img,scale)
-     
+
+            bin_img=self.__resize_bin(bin_img)              # Resize
+            
             ## Display picture
-            img = Image.fromarray(bin_img*255)                        # Convert to TKinter format
-            photo = ImageTk.PhotoImage(img)                       # Convert to TKinter format
+            img = Image.fromarray(bin_img*255)              # Convert to TKinter format
+            photo = ImageTk.PhotoImage(img)                 # Convert to TKinter format
             self.label_img = Label(self,image=photo)
             self.label_img.image=photo
             
@@ -502,12 +482,48 @@ class GUI2(PARENTGUI):
             return x_loc,y_loc
 
 
+      
+      def __resize_bin(self, bin_img,x_max=600,y_max=250):
+            ''' Resizes binary images
+                Takes
+                  image
+                Returns
+                  resized image
+            '''
+            x_length,y_length=np.shape(bin_img)
+            scale=min(x_max/x_length,y_max/y_length)                   # Find scaling
+            if(scale<1):
+                  re_img=self.picture.rescale_image(bin_img,scale)    # Make cmaller for bigger pictures
+                  
+            if(scale>1):
+                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
+
+                  re_img=self.picture.rescale_image(bin_img,scale)
+
+            return re_img
+
       def __open_page1(self):
             ''' Function to go to page 2'''         
             self.master.destroy()
             root2= Tk()
             window2=GUI1(self.values,root2)
 
+      def __binarize_img(self,img,threshold,name):
+            ''' Binarizes img uses picture class'''
+            ## Get filetype 
+            filename, file_extentions = os.path.splitext(name)
+            # Check if jpeg or png and photo binarize it
+            if(file_extentions==".png"):
+                  # Adapt threshold to imagetype
+                  threshold/=100
+                  bin_img=self.picture.binarize_picture_png(img,threshold)
+            elif(file_extentions==".jpeg"):
+                  # Adapt threshold to imagetype
+                  threshold*=2
+                  bin_img=self.picture.binarize_picture_jpeg(picture,threshold)
+            return bin_img
+
+            
       def __update_picture(self):
             ''' Gets new saturation value
                 Does
@@ -580,7 +596,7 @@ class GUI3(PARENTGUI):
           # Add slider and Button for adjusting binary value
           showButton=Button(self, text='Show',bg="white",font="Calibri 15 bold",fg="red",relief="raised", command=lambda:self.__update_picture())
           showButton.place(x=350,y=65)
-          slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=0, to=10,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.stribes)
+          slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=1, to=10,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.stribes)
           slider_cont.set(self.width_stribs_val)
           slider_cont.place(x=200,y=20)
 
@@ -589,7 +605,7 @@ class GUI3(PARENTGUI):
           self.__add_stribe_photo(self.width_stribs_val)
 
           # Add botton finsih and back
-          finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:__open_page3())
+          finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:__show_preview())
           finishButton.place(x=500,y=400)
           backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page2(self.values))
           backButton.place(x=50,y=420)
@@ -604,35 +620,90 @@ class GUI3(PARENTGUI):
                   N       := Number of png files
                   size    := size of first file 
             '''            
+
+            # Load image
+            name=self.values.png[0]
+            img = mpimg.imread("./"+name)
+
+            # Binarize img
+            bin_img=self.__binarize_img(img,self.saturation_val,name)
+            
+            
+            # Create pattern
             pattern=self.picture.create_stripes(self.values.size,self.values.N_png,s_width)
 
-            ## Resize 
-            # Calculate the resize value. Later picture will be bigger again
-            x_length,y_length=np.shape(pattern)
-            scale=min(x_max/x_length,y_max/y_length)        # Find scaling
-            if(scale<1):
-                  pattern=self.picture.rescale_image(pattern,scale)    # Make cmaller for bigger pictures
-                  
-            if(scale>1):
-                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
+            # Create Moire
+            moire=moire=self.picture.one_to_zero(bin_img)*(pattern)     # Create Moire
+            moire=self.picture.one_to_zero(moire)                        # Invert because 1 is black
 
-                  pattern=self.picture.rescale_image(pattern,scale)
+            ## Resize
+            moire=self.__resize_bin(moire)
      
             ## Display picture
-            img = Image.fromarray(pattern*255)                    # Convert to TKinter format
-            photo = ImageTk.PhotoImage(img)                       # Convert to TKinter format
+            img = Image.fromarray(moire*255)                    # Convert to TKinter format
+            photo = ImageTk.PhotoImage(img)                     # Convert to TKinter format
             self.label_img = Label(self,image=photo)
             self.label_img.image=photo
             
             # find location to place it
-            posx,posy=self.__put_in_middle(pattern)
+            posx,posy=self.__put_in_middle(moire)
             self.label_img.place(x=posx,y=posy)
 
+
+
+
             
+      def __binarize_img(self,img,threshold,name):
+            ''' Binarizes img uses picture class'''
+            ## Get filetype 
+            filename, file_extentions = os.path.splitext(name)
+            # Check if jpeg or png and photo binarize it
+            if(file_extentions==".png"):
+                  # Adapt threshold to imagetype
+                  threshold/=100
+                  bin_img=self.picture.binarize_picture_png(img,threshold)
+            elif(file_extentions==".jpeg"):
+                  # Adapt threshold to imagetype
+                  threshold*=2
+                  bin_img=self.picture.binarize_picture_jpeg(picture,threshold)
+            return bin_img
+
+
+
+
+            
+      def __resize_bin(self, bin_img,x_max=600,y_max=250):
+            ''' Resizes binary images
+                Takes
+                  image
+                Returns
+                  resized image
+            '''
+            x_length,y_length=np.shape(bin_img)
+            scale=min(x_max/x_length,y_max/y_length)                   # Find scaling
+            if(scale<1):
+                  re_img=self.picture.rescale_image(bin_img,scale)    # Make cmaller for bigger pictures
+                  
+            if(scale>1):
+                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
+
+                  re_img=self.picture.rescale_image(bin_img,scale)
+
+            return re_img
+
+
+
+
 
       def __clear_label_image(self):
           ''' Empties label content'''
           self.label_img.config(image='')
+
+
+
+
+
+          
             
       def __put_in_middle(self,bin_img):
             ''' Takes image
@@ -647,11 +718,18 @@ class GUI3(PARENTGUI):
             return x_loc,y_loc
 
 
+      
+
+
       def __open_page2(self):
             ''' Function to go to page 2'''         
             self.master.destroy()
             root2= Tk()
             window2=GUI2(values,root2,self.saturation)
+
+
+
+            
 
       def __update_picture(self):
             ''' Gets new saturation value
@@ -661,23 +739,35 @@ class GUI3(PARENTGUI):
                 Returns
                    Updated binarized picture
             '''
+
             
             # Get value
             val=int(self.stribes.get())
-            print(val)
             # Clear figure
-            self.__clear_label_image()
-            
+            self.__clear_label_image()        
 
             # Show new figure
             self.__add_stribe_photo(val)
-            
+
+      def __create_picturs(self):
+            ''' Creates the sliced moire pictues form pattern
+
+
+            '''
+            for i in range(0,self.values.N_png):                  # Iteratethrough all pictues
+                  if(i!=0):
+                        pattern=np.roll(pattern,s_width)          # Roll pattern       
+                  
+                  moire=one_to_zero(bin_img)*(pattern)            # Use pattern to create moire
+                  imageio.imsave('./Output/'+filename+'_moire_test'+str(i)+file_extentions, one_to_zero(moire))
+
 
             
-      def __next(self):
+      def __show_preview(self):
             if(self.__check_page()==True):
                   self.master.destroy()
-         # Now return all values
+         # Create and save pictures
+         
          
       def __check_page(self):
             return(True)
@@ -849,16 +939,15 @@ class PICTURE():
           return size
 
       def create_stripes(self,size,N,s_width=2):
-          # Create array
-          N_s=np.zeros([size[0],N*s_width])
+          # Create array    # Create array
+          N_s=np.zeros([size[0],(N)*s_width])
           # Fill with ones
           N_s[:,0:s_width]=np.ones([size[0],s_width])
 
           # multiply
-          pattern=np.tile(N_s,int(np.floor(size[1]/(N*self.s_width))))
-          rest_array=np.zeros([size[0],size[1]%(N*self.s_width)])
+          pattern=np.tile(N_s,int(np.floor(size[1]/(N*s_width))))
+          rest_array=np.zeros([size[0],size[1]%(N*s_width)])
           pattern=np.concatenate((pattern,rest_array),axis=1)
-
           return pattern
           
                                   
@@ -874,12 +963,7 @@ class PICTURE():
                    
 
       def main(self):
-          # Set names of png pictures
-          #picture_names=["bar1.png","bar2.png","bar3.png","bar4.png"]   
-          #picture_names=["me1.jpeg","me2.jpeg","me3.jpeg","me4.jpeg"]
           picture_names=["1.png","2.png","3.png","4.png"]   
-          #picture_names=["text1.png","text2.png","text3.png","text4.png"]  
-          #picture_names=["test.png"]
 
           # Get type of object
           filename, file_extentions = os.path.splitext(picture_names[0]) 
