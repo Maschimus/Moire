@@ -2,7 +2,7 @@
 from tkinter import *                                                   #Standart                        
 from PIL import Image,ImageTk                                           ### Instalation needed
 from tkinter.filedialog import askopenfilenames,askopenfilename         # Comes with TK inter
-import datetime                                                         # Standart      
+import subprocess                                                       # Standart      
 import matplotlib.pyplot as plt                                         # Standart
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -46,97 +46,8 @@ class PARENTGUI(Frame):
 
 
           # add menu bar
-          self.__menu()
-
-
-      def open_file(self,button,i):
-           ''' Function to open only png files
-               Takes:
-                         - Buttom event
-               Returns:
-                         - name of selceted Powerpoint
-                         - adds powertpoint to list
-            '''
-           # Open file
-           name = askopenfilename(parent=self.master,filetypes =(("PNG", "*.png"),("All Files","*.*")),
-                                  title = "Choose a file."
-                                  )
-
-           #Using try in case user types in unknown file or closes without choosing a file.
-           '''
-           try:
-               with open(name,'r') as UseFile:
-                   print(UseFile.read())
-           except:
-               print("No file exists")
-           '''
-           # Check if nothing was selectet
-                 # Do not change self.png
-                 # Set buttom to deflaut value
-           if(name==()):
-                  empt="Click to add file "
-                  name=empt.ljust(30)
-                  bname=name[:20]
-
-           # If something was selected set self.png and set buttom name
-           else:
-                 bname=(self.relative_name(str(name)))
-                 self.values.png[i]=bname
-                 bname=bname.ljust(40)
-                 bname=bname[:40]
-
-           # Check the input is correct
-           self.update_btn_text(button,bname)
-           self.__check_image_properties(i,button)
-           
-
-      def __check_image_properties(self,i,button):
-           ''' Takes
-                  i := index button
-            Does
-               loads image
-               checks if loaded image has same dimesion like excisting ones
-               checks size
-               saves values in global class values
-            '''
-
-           
-           # Load image to check properties
-           img = mpimg.imread("./"+self.values.png[i])
-           x,y,z=np.shape(img)
-           size=np.array([x,y])
-           
-           # Set image properties from first file
-           if(i==0):
-                 # Set global value size
-                 self.values.size=size
-                 
-           # check for same size like the first one
-           else:   
-                 if(size[0]!=self.values.size[0] or size[1]!=self.values.size[1]):
-                     # Reset values entry and button
-                     self.values.png[i]=None
-                     text="Click to add file "
-                     text=text.ljust(30)
-                     text=text[:20]
-                     self.update_btn_text(button,text)
-                     # Show error
-                     window=ERROR(self.master,3)
-
-                     
-      
-
-           # Show warning if file is probably to big
-           if(max(size)>self.to_big):
-                    window=WARNING(self.master,2)
-
-           # Show warning if probably to small
-           if(min(size)<self.to_small):
-                    window=WARNING(self.master,3)
-
-
-           # delete image again or save as global
-           del(img)
+          self.__menu()      
+                       
             
                   
       def __menu(self):
@@ -148,7 +59,7 @@ class PARENTGUI(Frame):
           # create the file object
           file = Menu(menu)
           file.add_command(label="Exit", command=self.client_exit)
-          file.add_command(label="Open File", command=self.open_file)
+          #file.add_command(label="Open File", command=self.open_file)
           menu.add_cascade(label="File", menu=file)
 
           # create the edit object
@@ -194,7 +105,7 @@ class PARENTGUI(Frame):
               Retrurns
                     - Photo at this location
           '''
-          load =Image.open("./Image/"+name)
+          load =Image.open(name)
           photo = ImageTk.PhotoImage(load)
           label = Label(self.master,image=photo)
           label.image=photo
@@ -261,13 +172,16 @@ class VALUES():
       '''
             
       def __init__(self,N=5,png=[],size=[0,0],N_png=0,output_loc="./Output",w_stribes=5,saturation=70):
-          self.N=N                        # Default numbers button
-          self.png=[None]*self.N          # Create Empty list for png
-          self.size=size                  # Size of first loaded picture
-          self.N_png=N_png                # Number of loaded png
-          self.output_loc=output_loc      # Output location
-          self.width_stribs_val=w_stribes # Width of stribe
-          self.saturation_val=saturation  # Saturation level for binarizing
+          self.N=N                              # Default numbers button
+          self.png=[None]*self.N                # Create Empty list for png
+          self.size=size                        # Size of first loaded picture
+          self.N_png=N_png                      # Number of loaded png
+          self.output_loc=output_loc            # Output location
+          self.width_stribs_val=w_stribes       # Width of stribe
+          self.saturation_val=saturation        # Saturation level for binarizing
+          self.gif_name='/animated-moire.gif'   # Name of gif
+          self.moire_name='/moire.png'          # Name of Moire
+          self.pattern_name='pattern.png'       # Name of pattern
           
 
           # Fill List of Powerpoint names with given names, if list png is not empty
@@ -321,7 +235,6 @@ class GUI1(PARENTGUI):
    ''' Class for page 1'''
    def __init__(self, values,master=None,N=5):
           PARENTGUI.__init__(self,values,master)
-          self.filename=[None]*self.values.N
           # Set main Frame and window
           self.__init_window()
 
@@ -332,7 +245,7 @@ class GUI1(PARENTGUI):
           self.master.title("Loading files")
               
           # Add botton merge
-          mergeButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",relief="raised",command=lambda:self.__open_page2(self.values))
+          mergeButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",relief="raised",command=lambda:self.__open_page2())
           mergeButton.place(x=450,y=400)
           
           # Add botton more Files
@@ -344,8 +257,8 @@ class GUI1(PARENTGUI):
           btn=[]
           for i in range(0,self.values.N):
                  dist=int((self.hight-200)/self.values.N)                              # Calculate distance for placement
-                 self.add_photo("Symbol.png",50,80+i*dist)
-                 btn.append(Button(self,text=self.__buttom_name(i),bg="red",font="Calibri 12 ",fg="white",relief="raised",command=lambda i=i:self.open_file(btn[i],i)))    
+                 self.add_photo("./AppData/Symbol.png",50,80+i*dist)
+                 btn.append(Button(self,text=self.__buttom_name(i),bg="red",font="Calibri 12 ",fg="white",relief="raised",command=lambda i=i:self.open_file(btn,i)))    
                  btn[i].place(x=100,y=80+(i)*dist)
                
 
@@ -364,15 +277,105 @@ class GUI1(PARENTGUI):
       window=WARNING(root2,1)
       
 
+   def open_file(self,button_list,i):
+           ''' Function to open only png files
+               Takes:
+                         - Buttom event
+               Returns:
+                         - name of selceted Powerpoint
+                         - adds powertpoint to list
+            '''
+           # Open file
+           try:
+                 names = askopenfilenames(parent=self.master,initialdir = "./Images",filetypes =(("PNG", "*.png"),("All Files","*.")),
+                                        title = "Choose a file."
+                                        )
+           except:
+                 window=ERROR(self.master,6)
 
-   def __open_page2(self,values):
+ 
+           # Check if nothing was selectet
+                 # Do not change self.png
+                 # Set buttom to deflaut value
+           if(names==()):
+                  empt="Click to add file "
+                  name=empt.ljust(30)
+                  bname=name[:20]
+           
+           # Multiple files where selected
+           else:
+                 for j,name in enumerate(names):
+                        bname=(self.relative_name(str(name)))
+                        self.values.png[i+j]=bname
+                        bname=bname.ljust(40)
+                        bname=bname[:40]
+
+                        # Check the input is correct
+                        self.update_btn_text(button_list[i+j],bname)
+                        self.__check_image_properties(i+j,button_list[i+j])
+                        self.__buttom_name(i+j)
+
+
+
+                        
+   def __check_image_properties(self,i,button):
+           ''' Takes
+                  i := index button
+            Does
+               loads image
+               checks if loaded image has same dimesion like excisting ones
+               checks size
+               saves values in global class values
+            '''
+
+           
+           # Load image to check properties
+           img = mpimg.imread("./"+self.values.png[i])
+           x,y,z=np.shape(img)
+           size=np.array([x,y])
+           
+           # Set image properties from first file
+           if(i==0):
+                 # Set global value size
+                 self.values.size=size
+                 
+           # check for same size like the first one
+           else:   
+                 if(size[0]!=self.values.size[0] or size[1]!=self.values.size[1]):
+                     # Reset values entry and button
+                     self.values.png[i]=None
+                     text="Click to add file "
+                     text=text.ljust(30)
+                     text=text[:20]
+                     self.update_btn_text(button,text)
+                     # Show error
+                     window=ERROR(self.master,3)
+
+                     
+      
+
+           # Show warning if file is probably to big
+           if(max(size)>self.to_big):
+                    window=WARNING(self.master,2)
+
+           # Show warning if probably to small
+           if(min(size)<self.to_small):
+                    window=WARNING(self.master,3)
+
+
+           # delete image again or save as global
+           del(img)
+
+           
+
+   def __open_page2(self):
       ''' Function to go to page 2'''
             
       if(self.__check_page()):
             self.master.destroy()   # Destroy window
               
             root2= Tk()             # Open new window
-            window2=GUI2(values,root2)
+            window2=GUI2(self.values,root2)
       
           
    def __buttom_name(self,i):
@@ -437,7 +440,7 @@ class GUI1(PARENTGUI):
  ######## GUI2 ################### GUI2 ################### GUI2 ###################         
 class GUI2(PARENTGUI):
       ''' Define class for second page'''
-      def __init__(self, values,master,saturation_val=70):
+      def __init__(self, values,master):
           PARENTGUI.__init__(self, values,master)
           self.value=values                     # names of png
           self.label_img=None                   # Gloabal fotolabel for deleting
@@ -549,7 +552,7 @@ class GUI2(PARENTGUI):
                   re_img=self.picture.rescale_image(bin_img,scale)    # Make cmaller for bigger pictures
                   
             if(scale>1):
-                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
+                  scale=min(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
 
                   re_img=self.picture.rescale_image(bin_img,scale)
 
@@ -591,6 +594,10 @@ class GUI2(PARENTGUI):
             
             # Get value
             val=self.saturation.get()
+
+            # Write saturation value in values class
+            self.values.saturation_val=val
+            
             # Clear figure
             self.__clear_label_image()
             
@@ -605,7 +612,7 @@ class GUI2(PARENTGUI):
                   self.master.destroy()   # Destroy window
                     
                   root3= Tk()             # Open new window
-                  window2=GUI3(self.values,root3,self.saturation.get())
+                  window2=GUI3(self.values,root3)
 
             
       def __next(self):
@@ -615,17 +622,17 @@ class GUI2(PARENTGUI):
          
       def __check_page(self):
             # Check if self.saturation was updated
+            ''' If nothign was changed give warning 
             if(not(self.executed)):
-                  window=WARNING(self.master,0)
-                  
-            
+                  #window=WARNING(self.master,0)
+            '''   
             return(True)
 
 ################################### GUI3 #################################### GUI3 ############################
 class GUI3(PARENTGUI):
       ''' Define class for second page'''
-      def __init__(self, values,master,saturation):
-          PARENTGUI.__init__(self, values,master)
+      def __init__(self, values,master):
+          PARENTGUI.__init__(self,values,master)
           self.value=values               # names of png
           self.label_img=None             # Gloabal fotolabel for deleting
           self.stribes=DoubleVar()        # Create slider object
@@ -660,7 +667,7 @@ class GUI3(PARENTGUI):
           # Add botton finsih and back
           finishButton=Button(self,text="Continue",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__show_preview())
           finishButton.place(x=500,y=400)
-          backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page2(self.values))
+          backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page2())
           backButton.place(x=50,y=420)
 
 
@@ -790,7 +797,7 @@ class GUI3(PARENTGUI):
                   re_img=self.picture.rescale_image(bin_img,scale)    # Make cmaller for bigger pictures
                   
             if(scale>1):
-                  scale=max(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
+                  scale=min(x_max/x_length,y_max/y_length)             # Make bigger for smaller picture
 
                   re_img=self.picture.rescale_image(bin_img,scale)
 
@@ -827,7 +834,7 @@ class GUI3(PARENTGUI):
             ''' Function to go to page 2'''         
             self.master.destroy()
             root2= Tk()
-            window2=GUI2(values,root2,self.saturation)
+            window2=GUI2(self.values,root2)
 
 
 
@@ -842,7 +849,6 @@ class GUI3(PARENTGUI):
                    Updated binarized picture
             '''
 
-            
             # Get value
             val=int(self.stribes.get())
 
@@ -877,7 +883,8 @@ class GUI3(PARENTGUI):
                      # Get pattern
                      pattern=self.pattern
                      # Save pattern
-                     imageio.imsave(self.values.output_loc+'/pattern.png', pattern)
+                     pattern_save=pattern.astype(np.uint8)                      # Surpress warning
+                     imageio.imsave(self.values.output_loc+self.values.pattern_name, pattern_save)
                      
                # Don't save pattern again
                else:
@@ -898,7 +905,8 @@ class GUI3(PARENTGUI):
             
             output=self.picture.one_to_zero(output)                             # Invert because 1 is black
             # Save  image
-            imageio.imsave(self.values.output_loc+'/moire.png', output)
+            output_save=output.astype(np.uint8)                                  # Surpress warning
+            imageio.imsave(self.values.output_loc+self.values.moire_name, output_save)
 
             
       def __show_preview(self):
@@ -915,21 +923,43 @@ class GUI3(PARENTGUI):
          #self.__open_page4()
 
       
-         if(self.__check_page()==True):
-            self.master.destroy()
+         if(self.__check_page()):
+            self.master.destroy()   # Destroy window
+              
+            root2= Tk()             # Open new window
+            window3=GUI4(self.values,root2)
 
       
 
-      def __gif_animation(self,duration=500,loop=2):
+      def __gif_animation(self,duration=4,loop=5,N_steps=5,roll_fac=4):
+            ''' Takes
+                  duration:= Time to diyplay arach file
+                  loop    := Number of times to loop the gif sequence
+                  N_steps := Number of steps in s_width
+                  roll_fac:= Factor of how far to roll
+                  
+                Creates gif in Output file
+             '''
+            
             # create a tuple of display durations, one for each frame
             durations = duration
 
             # load all the static images into a list
-            gif_filepath = self.values.output_loc+'/animated-moire.gif'
+            gif_filepath = self.values.output_loc+self.values.gif_name
 
             # Create list of images
             images=[]
-            for i in range(0,self.values.N_png):  
+            # Define steps for virtual rolling of image
+            N_roll=N_steps*self.values.N_png
+
+            # calcullate best duration
+            #e.q 0.2s for rolling
+
+            
+            # Calculate rollsize
+            roll_size=int(self.__stribe_sizer(self.values.width_stribs_val)/N_roll)
+            # Loop
+            for i in range(0,int(N_roll*roll_fac)):  
                # Save load and save pattern
                if(i==0):
                      # Get pattern
@@ -937,7 +967,7 @@ class GUI3(PARENTGUI):
                      
                # Don't save pattern again
                else:
-                     pattern=np.roll(pattern,int(self.__stribe_sizer(self.values.width_stribs_val)/5))    # Roll pattern to make different pictures visible maybe better save other varibale :)
+                     pattern=np.roll(pattern,roll_size) # Roll pattern to make different pictures visible maybe better save other varibale :)
                # add pattern to output
                image=self.output+self.picture.one_to_zero(pattern)
                image=self.picture.one_to_zero(image)
@@ -956,7 +986,6 @@ class GUI3(PARENTGUI):
                window=ERROR(self.master,6)
             
             
-
                
          
 
@@ -973,16 +1002,88 @@ class GUI3(PARENTGUI):
             for f in filelist:
                 os.remove(os.path.join(self.values.output_loc, f))
 
-                
-
-
-
-
          
       def __check_page(self):
             return(True)
 
+      
+      
+############################### PAGE 4 ################################## PAGE 4
+class GUI4(PARENTGUI):
+      ''' Define class for second page'''
+      def __init__(self, values,master=None,N=5):
+                PARENTGUI.__init__(self,values,master)
+                ''' Function to add more files'''
+                #self.open_file(
+                self.value=values               # all relevant values
+                self.x_pos=100                  # Position x text
+                self.y_pos=50                   # Position y text
+                self.hight=6                    # Hight text in lines
+                self.width=35                   # Width Text lines
 
+                self.posx_b=280                 # Position Button y
+                self.posy_b=250                 # Position Button y
+
+                self.text_inst="\n"+"       A simulated GIF should open soon.\n"+ "  Press 'Show again' to see the GIF again! \n\n                      Have a nice day"
+
+                # Set main Frame and window
+                self.__init_window()
+
+      def __init_window(self):
+                self.master.title("Review data")
+
+                # Window parametery
+                label_width=20                  
+                eingabe_loc=400
+                pic_locx=50
+                pic_locy=150
+
+                # Add gif
+                self.__open_gif()
+
+
+                # Final instructions
+                T_i = Text(self.master, height=self.hight, width=self.width,font="Calibri 20",bg="white")
+                T_i.insert(END, self.text_inst)
+                T_i.place(x=self.x_pos,y=self.y_pos)
+            
+
+                # Show again button
+                showButton=Button(self, text='Show again',bg="white",font="Calibri 25 bold",fg="red",relief="raised", command=lambda:self.__show_gif_again())
+                showButton.place(x=self.posx_b,y=self.posy_b)
+        
+
+                # Add botton finsih and back
+                finishButton=Button(self,text="Finish",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__finish())
+                finishButton.place(x=500,y=400)
+                backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page3())
+                backButton.place(x=50,y=420)
+
+
+
+      def __show_gif_again(self):
+            self.__open_gif()
+            
+
+
+      def __open_gif(self):
+          imageViewerFromCommandLine = {'linux':'xdg-open',
+                                        'win32':'explorer',
+                                        'darwin':'open'}[sys.platform]
+          try:
+              subprocess.run([imageViewerFromCommandLine, self.values.output_loc+self.values.gif_name])
+          except IOError:
+                window=WARNING(self.master,4)
+                
+        
+      def __open_page3(self):
+            ''' Function to go to page 2'''         
+            self.master.destroy()
+            root2= Tk()
+            window2=GUI3(self.values,root2)
+
+      def __finish(self):
+            self.master.destroy()
 
 ######## WARNING ################### WARNING ################### WARNING ###################
               
@@ -1033,19 +1134,21 @@ class WARNING(SIDESIDE):
               elif(self.Nr==3):
                     text="Your picture is quite small!\n"+"This may cause problems\n"+"Recommended are min 30 pixels"
                     T.insert(END,text)
-                    return 0   
+                    return 0
+                  
+              elif(self.Nr==4):
+                    text="Could not open GIF file.\n"+"Please do it by hand in the Oututfolder"
+                    T.insert(END,text)
+                    return 0  
 
                   
               else:
                     text="Unbekannter error. \nContact Marius Neugschwender"
                     T.insert(END,text)
-                    #unknown erro pleas contact     
+                    #unknown erro pleas contact
 
 
-              
-
-
-
+      
 ######## ERROR ################### ERROR ################### ERROR ###################
               
 class ERROR(SIDESIDE):
@@ -1092,7 +1195,12 @@ class ERROR(SIDESIDE):
                     return 0
                
               elif(self.Nr==6):
-                    text="WSomething is wrong with the gif. \n"+"Numbers do not match!"
+                    text="Something is wrong with the gif. \n"+"Numbers do not match!"
+                    T.insert(END,text)
+                    return 0
+                   
+              elif(self.Nr==7):
+                    text="Something is wrong could not load files!"
                     T.insert(END,text)
                     return 0
                                                   
@@ -1149,23 +1257,7 @@ class PICTURE():
           A*=(-1)
           return A
 
-      def simulate(self,pattern,output,N=100):
-          animation_pic=[]
-          for i in range(0,N):   
-              bild=self.one_to_zero(pattern)+output
-              bild=bild>0.5
-              bild=np.array(bild)
-              pattern=np.roll(pattern,self.s_width)
-              animated_bild=plt.imshow(bild,animated=True)
-              animation_pic.append([animated_bild])
-
-          return animation_pic
           
-
-      def length_check(self,img):
-          size=np.shape(img)
-          return size
-
       def create_stripes(self,size,N,s_width=2):
           # Create array    # Create array
           N_s=np.zeros([size[0],(N)*s_width])
@@ -1188,70 +1280,17 @@ class PICTURE():
           newX,newY = bin_img.shape[1]*imgScale, bin_img.shape[0]*imgScale
           newimg = cv2.resize(bin_img,(int(newX),int(newY)))
           return newimg                  
-                   
-
-      def main(self):
-          picture_names=["1.png","2.png","3.png","4.png"]   
-
-          # Get type of object
-          filename, file_extentions = os.path.splitext(picture_names[0]) 
-          N=len(picture_names)
-          # Loop over all pictures
-          for i,picture in enumerate(picture_names):
-              
-              
-              # Load and convert picture
-              if(file_extentions==".png"):
-                  bin_img=self.binarize_picture_png(picture)
-              elif(file_extentions==".jpeg"):
-                  bin_img=self.binarize_picture_jpeg(picture)
-              else:
-                  raise("File format not supported, please use png oder jpeg")
-                  
-
-              # Get length
-              size=self.length_check(bin_img)
-              
-              # Load each picture check size and save size, if size is not the same show error
-              # Create test pattern only one tyme
-
-              if (i==0):
-                  # Create pattern
-                  print("Create pattern \n")
-                  pattern=self.create_stripes(size,N,self.s_width)
-                  # Save pattern
-                  imageio.imsave('./Output/'+filename+'_pattern42'+file_extentions, pattern)
-
-                  # Create output
-                  output=np.zeros(size)
-                  print("Create Moire pictue \n \n")
-              else:
-                  pattern=np.roll(pattern,self.s_width)
-
-          
-              moire=self.one_to_zero(bin_img)*(pattern)
-              output+=moire
-          
-          output=output>0.5
-          output=np.array(output)
-          imageio.imsave('./Output/'+filename+'_moire42'+file_extentions, one_to_zero(output))
-
-          # Simulate
-          fig = plt.figure()
-          ims=self.simulate(pattern,output)
-          ani = animation.ArtistAnimation(fig, ims, interval=500, blit=True,
-                                          repeat_delay=1000)
-          plt.show()                               
+                                                
 #MAINGUI()
 def main():
-      # Make Tknter window and get values
-      root=Tk()
+      # Initialize all values
       values=VALUES()
+      
+      # Open Tkinter window
+      root=Tk()
       Window=GUI1(values,root)
       root.mainloop()
-      print(values.return_values())
-
-      # here Stefan ... make Powerpoint
+      print("Finished")
 
 if __name__ == "__main__":
     main()
