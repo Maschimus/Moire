@@ -1,19 +1,11 @@
-''' TO do
-picture loading handler and delete memory
-Mehr Bilder flüssiger? -> Bildänderung sollte in Stribe width sein
-'''
-
-
 # Using python 3.6
 from tkinter import *                                                   #Standart                        
 from PIL import Image,ImageTk                                           ### Instalation needed
 from tkinter.filedialog import askopenfilenames,askopenfilename         # Comes with TK inter
 import subprocess                                                       # Standart      
-import matplotlib.pyplot as plt                                         # Standart
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg         # pseudostandart
-
+from scipy.ndimage.interpolation import rotate                          # Scipy needs to be added
 # For Moire
-import matplotlib.pyplot as plt                 # For ploting
 import numpy as np                              # Array handling
 import matplotlib.image as mpimg                # Load image
 import imageio                                  # Save image without yellow               
@@ -187,6 +179,8 @@ class VALUES():
           self.gif_name='/animated-moire.gif'         # Name of gif
           self.moire_name='/moire.png'                # Name of Moire
           self.pattern_name='/pattern.png'            # Name of pattern
+          self.pattern=np.zeros([1,1])                # Array to store pattern
+          self.moire=np.zeros([1,1])                  # Aray to store moire images for gif
           
 
           # Fill List of Powerpoint names with given names, if list png is not empty
@@ -465,8 +459,11 @@ class GUI2(PARENTGUI):
           showButton.place(x=350,y=65)
           slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=0., to=100,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.saturation)
           slider_cont.set(self.values.saturation_val[0])
-          slider_cont.place(x=200,y=20)
+          slider_cont.place(x=180,y=20)
 
+          # Add Help Button
+          helpButton=Button(self,text='?',bg="white",font="Calibri 12 bold",fg="black",relief="raised",command=lambda:self.__help())
+          helpButton.place(x=590,y=28)
 
           # Add photo
           self.__add_binary_photo()
@@ -527,6 +524,9 @@ class GUI2(PARENTGUI):
       def __clear_label_image(self):
           ''' Empties label content'''
           self.label_img.config(image='')
+
+      def __help(self):
+            help_site=HELP(self.master,0)
             
       def __put_in_middle(self,bin_img):
             ''' Takes image
@@ -537,7 +537,7 @@ class GUI2(PARENTGUI):
             x_length,y_length=np.shape(bin_img)
 
             x_loc=int((self.width-y_length)/2)
-            y_loc=int((self.hight-x_length-30)/2)
+            y_loc=int((self.hight-x_length-5)/2)
             return x_loc,y_loc
 
       def __next_pic(self):
@@ -552,7 +552,7 @@ class GUI2(PARENTGUI):
             self.__add_binary_photo()     # Add new picture
 
             
-      def __resize_bin(self, bin_img,x_max=600,y_max=250):
+      def __resize_bin(self, bin_img,x_max=600,y_max=280):
             ''' Resizes binary images
                 Takes
                   image
@@ -650,7 +650,6 @@ class GUI3(PARENTGUI):
           self.label_img=None             # Gloabal fotolabel for deleting
           self.stribes=DoubleVar()        # Create slider object
           self.pattern=np.zeros([1,1])    # Pattern object
-          self.output=np.zeros([1,1])     # List of moire images for gif
           self.pic_pointer=0              # Poiter to adress current image
       
 
@@ -659,7 +658,7 @@ class GUI3(PARENTGUI):
 
       def __init_window(self):
           ''' Funtion to initialize visible screen'''
-          self.master.title("Binarizing picture")
+          self.master.title("Choose stips")
 
           # Window parametery
           label_width=20                  
@@ -673,17 +672,25 @@ class GUI3(PARENTGUI):
           showButton.place(x=350,y=65)
           slider_cont = Scale(self,bg="red",fg="white",font="Calibri 12",from_=1, to=10,resolution=1,relief="raised",length=400, orient=HORIZONTAL,variable=self.stribes)
           slider_cont.set(self.values.width_stribs_val)
-          slider_cont.place(x=200,y=20)
+          slider_cont.place(x=180,y=20)
+
+          # Add Help Button
+          helpButton=Button(self,text='?',bg="white",font="Calibri 12 bold",fg="black",relief="raised",command=lambda:self.__help())
+          helpButton.place(x=590,y=28)
+
 
 
           # Add photo
           self.__add_stribe_photo()
 
 
-      # Add button to show nex picture
-          nextpicButton=Button(self,text="Next picture",bg="red",font="Calibri 20 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__next_pic())
-          nextpicButton.place(x=290,y=415)
-          
+          # Add button to show nex picture
+          '''
+            Optional in testcase it did not make much sense!
+            nextpicButton=Button(self,text="Next picture",bg="red",font="Calibri 20 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__next_pic())
+            nextpicButton.place(x=290,y=415)
+          '''
+                
           # Add botton finsih and back
           finishButton=Button(self,text="Continue",bg="red",font="Calibri 14 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__show_preview())
           finishButton.place(x=650,y=420)
@@ -746,7 +753,7 @@ class GUI3(PARENTGUI):
             pattern=self.picture.create_stripes(self.values.size,self.values.N_png,s_width_pix)
 
             # Save pattern object
-            self.pattern=pattern
+            self.values.pattern=pattern
 
             # Create Moire
             moire=moire=self.picture.one_to_zero(bin_img)*(pattern)     # Create Moire
@@ -767,7 +774,7 @@ class GUI3(PARENTGUI):
 
             '''
             found=False                                     # Value to display if not found
-            N_stribes=np.array([2,4,5,10,15,25,40,60])      # Define stribes for value
+            N_stribes=np.array([2,4,5,10,15,25,40,60,80,100])      # Define stribes for value
             for i,val in enumerate(N_stribes):
                   if(i+1==N_s):
                         s_width_pix=self.__width_handler(val)
@@ -795,7 +802,10 @@ class GUI3(PARENTGUI):
                   threshold=max(threshold,0)
                   bin_img=self.picture.binarize_picture_jpeg(img,threshold)
             return bin_img
-
+      
+      
+      def __help(self):
+            help_site=HELP(self.master,1)
 
       def __width_handler(self,N_s):
             '''Takes
@@ -813,7 +823,7 @@ class GUI3(PARENTGUI):
             return s_width
 
             
-      def __resize_bin(self, bin_img,x_max=600,y_max=250):
+      def __resize_bin(self, bin_img,x_max=600,y_max=300):
             ''' Resizes binary images
                 Takes
                   image
@@ -853,7 +863,7 @@ class GUI3(PARENTGUI):
             x_length,y_length=np.shape(bin_img)
 
             x_loc=int((self.width-y_length)/2)
-            y_loc=int((self.hight-x_length-30)/2)
+            y_loc=int((self.hight-x_length+15)/2)
             return x_loc,y_loc
 
 
@@ -911,7 +921,7 @@ class GUI3(PARENTGUI):
                # Save load and save pattern
                if(i==0):
                      # Get pattern
-                     pattern=self.pattern
+                     pattern=self.values.pattern
                      # Save pattern
                      print("Created pattern")
                      imageio.imsave(self.values.output_loc+self.values.pattern_name, pattern)
@@ -931,7 +941,7 @@ class GUI3(PARENTGUI):
             output=output>0.5
 
             # Save output
-            self.output=output
+            self.values.moire=output
             
             output=self.picture.one_to_zero(output)                             # Invert because 1 is black
             # Save  image
@@ -961,7 +971,7 @@ class GUI3(PARENTGUI):
 
       
 
-      def __gif_animation(self,loop=3,N_steps=2,roll_fac=3):
+      def __gif_animation(self,loop=0,N_steps=2,roll_fac=3):
             ''' Takes
                   duration:= Time to diyplay arach file
                   loop    := Number of times to loop the gif sequence
@@ -991,13 +1001,13 @@ class GUI3(PARENTGUI):
                # Save load and save pattern
                if(i==0):
                      # Get pattern
-                     pattern=self.pattern
+                     pattern=self.values.pattern
                      
                # Don't save pattern again
                else:
-                     pattern=np.roll(pattern,roll_size) # Roll pattern to make different pictures visible maybe better save other varibale :)
+                     pattern=np.roll(pattern,roll_size)                       # Roll pattern to make different pictures visible maybe better save other varibale :)
                # add pattern to output
-               image=self.output+self.picture.one_to_zero(pattern)
+               image=self.values.moire+self.picture.one_to_zero(pattern)
                image=self.picture.one_to_zero(image)
                image = Image.fromarray(image*255)           
                images.append(image)
@@ -1012,11 +1022,9 @@ class GUI3(PARENTGUI):
 
             print("Created GIF")
             
-            
       def __best_duration(self, N_steps=4,rep_time=0.5):
             duration=int((1000*rep_time)/N_steps)          # Calculate best duration and convert to ms
-            return duration
-         
+            return duration      
 
       def __delete_all_files(self):
             ''' Function deletes gif and png files in output dictionary'''
@@ -1045,15 +1053,15 @@ class GUI4(PARENTGUI):
                 ''' Function to add more files'''
                 #self.open_file(
                 self.value=values               # all relevant values
-                self.x_pos=100                  # Position x text
-                self.y_pos=50                   # Position y text
+                self.x_pos=90                  # Position x text
+                self.y_pos=40                   # Position y text
                 self.hight=6                    # Hight text in lines
-                self.width=35                   # Width Text lines
+                self.width=42                   # Width Text lines
 
                 self.posx_b=280                 # Position Button y
                 self.posy_b=250                 # Position Button y
 
-                self.text_inst="\n"+"       A simulated GIF should open soon.\n"+ "  Press 'Show again' to see the GIF again! \n\n                      Have a nice day"
+                self.text_inst="\n"+"             A simulated GIF should open soon.\n"+   "   Press 'Reality check' to simulate a realistic GIF! \n\n                      Have a nice day"
 
                 # Set main Frame and window
                 self.__init_window()
@@ -1065,46 +1073,212 @@ class GUI4(PARENTGUI):
                 label_width=20                  
                 eingabe_loc=400
                 pic_locx=50
-                pic_locy=150
+                pic_locy=160
 
                 # Add gif
                 self.__open_gif()
 
 
                 # Final instructions
-                T_i = Text(self.master, height=self.hight, width=self.width,font="Calibri 20",bg="white")
+                T_i = Text(self.master, height=self.hight, width=self.width,font="Calibri 18",bg="white")
                 T_i.insert(END, self.text_inst)
                 T_i.place(x=self.x_pos,y=self.y_pos)
-            
+
+
+
+                  
 
                 # Show again button
-                showButton=Button(self, text='Show again',bg="white",font="Calibri 25 bold",fg="red",relief="raised", command=lambda:self.__show_gif_again())
-                showButton.place(x=self.posx_b,y=self.posy_b)
+                #showButton=Button(self, text='Show again',bg="white",font="Calibri 25 bold",fg="red",relief="raised", command=lambda:self.__show_gif_again())
+                #showButton.place(x=self.posx_b,y=self.po    sy_b)
+
+                realityButton=Button(self,text="Reality check",bg="white",font="Calibri 25 bold",fg="red",relief="raised",command=lambda:self.__simulate_human())
+                realityButton.place(x=self.posx_b,y=self.posy_b)
+
+                # Add Help Button
+                helpButton=Button(self,text='?',bg="white",font="Calibri 12 bold",fg="black",relief="raised",command=lambda:self.__help())
+                helpButton.place(x=570,y=262)
+
         
 
                 # Add botton finsih and back
                 finishButton=Button(self,text="Finish",bg="red",font="Calibri 40 bold",fg="white",activebackground="white",highlightbackground="white",relief="raised",command=lambda:self.__finish())
-                finishButton.place(x=500,y=400)
+                finishButton.place(x=520,y=400)
                 backButton=Button(self,text="Back",bg="white",font="Calibri 12 bold",fg="red",relief="raised",command=lambda:self.__open_page3())
-                backButton.place(x=50,y=420)
+                backButton.place(x=340,y=420)
 
 
+
+
+      def __stribe_sizer(self,N_s):
+            ''' Calculates a sensful range of stribe_width according to the picture size
+
+                  Input         Number of stribs
+                  1             100             N_stribes[0]
+                  2             75              N_stribes[1]
+                  .
+                  .
+                  .
+                  10             6              N_stribes[9]
+
+            '''
+            found=False                                     # Value to display if not found
+            N_stribes=np.array([2,4,5,10,15,25,40,60,80,100])      # Define stribes for value
+            for i,val in enumerate(N_stribes):
+                  if(i+1==N_s):
+                        s_width_pix=self.__width_handler(val)
+                        found=True
+                        return s_width_pix
+            if(not(found)):
+                  window=ERROR(self.master,19)               
+
+
+      def __simulate_human(self,loop=0,N_steps=2,roll_fac=3,max_deg=3):
+                 ''' Simulates imperfect rolling to get the expected result
+                        Takes:
+                              duration:= Time to diyplay arach file
+                              loop    := Number of times to loop the gif sequence
+                              N_steps := Number of steps in s_width
+                              roll_fac:= Factor of how far to roll
+                            max_degree := Maximum change of degree
+                        Returns
+                            gif simulation with missmatched pattern
+                 '''
+
+                 ''' Predefinition and calculation of things'''
+
+                 # GIF
+                 # create a tuple of display durations, one for each frame
+                 duration = self.__best_duration(N_steps)
+
+                 # load all the static images into a list
+                 gif_filepath = self.values.output_loc+self.values.gif_name
+
+                 # Create list of images
+                 images=[]
+                 # Define steps for virtual rolling of image
+                 N_roll=N_steps*self.values.N_png
+
+                 # ANGULAR MISMATCH
+                 roll_size=max(1,int(self.__stribe_sizer(self.values.width_stribs_val)/N_steps))   # Calculate rollsize
+                 angles=self.__rolling(int(N_roll*roll_fac),max_deg)                                             # Get function for angles
+                 pat_width=self.values.size[0]
+                 pat_height=self.values.size[1]                                                    # Get image properties
+                      
+                 # Calculate maximum mismatch
+                 x_mis=int(np.ceil(max(np.sin(angles*2*np.pi/360))*pat_height))
+                 y_mis=int(np.ceil(max(np.sin(angles*2*np.pi/360))*pat_width))
+
+                 # Get shape of template form
+                 form_width=x_mis+pat_width
+                 form_height=y_mis+pat_height
+                                       
+                 form=np.zeros([form_width,form_height])+1
+
+                 # Put picture in form
+                 form[int(np.floor(x_mis/2)):form_width-int(np.ceil(x_mis/2)),int(np.floor(y_mis/2)):form_height-int(np.ceil(y_mis/2))]=self.values.moire
+
+                 # Loop
+                 for i in range(0,int(N_roll*roll_fac)):
+                     # Save load and save pattern
+                     if(i==0):
+                           # Get pattern
+                           pattern=self.values.pattern
+                           
+                     # Don't save pattern again
+                     else:
+                           pattern=np.roll(pattern,roll_size) # Roll pattern to make different pictures visible maybe better save other varibale :)
+
+                     # Rotated picture
+                     rotated= rotate(pattern,angles[i] )
+          
+                     # Put rotated picture in form
+                     rotated_width,rotated_heigth=np.shape(rotated)
+                     x_diff=form_width-rotated_width
+                     y_diff=form_height-rotated_heigth
+
+                     output=np.zeros(np.shape(form))+1
+                     output[int(np.floor(x_diff/2)):int(form_width-np.ceil(x_diff/2)),int(np.floor(y_diff/2)):int(form_height-np.ceil(y_diff/2))]=rotated
+   
+                     # add pattern to output
+                     image=self.picture.one_to_zero(output)+form
+                     image=self.picture.one_to_zero(image)
+                     image = Image.fromarray(image*255)           
+                     images.append(image)
+
+                 # save as an animated gif
+                 gif = images[0]
+                 gif.save(fp="./Output/reality_check.gif", format='gif', save_all=True, append_images=images[1:],duration=duration,loop=loop)
+
+                 # Verify that the number of frames in the gif equals the number of image files and durations
+                 if(not(Image.open(gif_filepath).n_frames == len(images))):
+                     window=ERROR(self.master,6)
+
+                 print("Created GIF")
+
+                 # OPEN GIF
+
+
+
+
+      def __width_handler(self,N_s):
+            '''Takes
+                  N := Number of stribes
+               Returns
+                  s_wdth:= best estimaton of s_width for N stribes given a photo with size(nxm)
+            '''
+            x_size=self.values.size[1]                                  # !!! np.shape definition x,y,z=np.shape() x is the vertical and y the horizontal
+            # calculate s_width
+            ''' One cell contains N_s patern lik this:
+            w1 ... ws_width | w1 .... ws_width | ...N_png times... |  w1 ... ws_width
+            -> s_width=x_size/(N_s*self.values.N_png)
+            '''
+            s_width=int(round(x_size/(N_s*self.values.N_png)))     
+            return s_width
+
+
+      def __help(self):
+            help_site=HELP(self.master,2)
+
+      
+      def __rolling(self,steps, max_angle=1):
+                ''' Sinus model function for anglar mismatch
+                        Takes:
+                            steps   := Rolling steps
+                            max_ang := Maximal mismatch angle
+                        Returns:
+                            angle   := Angular mismatch for each step
+                '''
+
+                # Linear
+                x=np.linspace(0,1.5*np.pi,steps)
+                angles=np.sin(x+1)*0.7*max_angle+0.3*max_angle
+                return angles
 
       def __show_gif_again(self):
             self.__open_gif()
             
 
 
-      def __open_gif(self):
+      def __open_gif(self,name=[]):
           imageViewerFromCommandLine = {'linux':'xdg-open',
                                         'win32':'explorer',
-                                        'darwin':'open'}[sys.platform]
-          try:
-              subprocess.run([imageViewerFromCommandLine, self.values.output_loc+self.values.gif_name])
-          except IOError:
-                window=WARNING(self.master,4)
+                                       'darwin':'open'}[sys.platform]
+          if(name==[]):
+                try:
+                    subprocess.run([imageViewerFromCommandLine, self.values.output_loc+self.values.gif_name])
+                except IOError:
+                    window=WARNING(self.master,4)
+          else:
+                try:
+                  subprocess.run([imageViewerFromCommandLine, self.values.output_loc+self.values.gif_name])
+                except IOError:
+                      window=WARNING(self.master,4)
                 
-        
+      def __best_duration(self, N_steps=4,rep_time=0.5):
+            duration=int((1000*rep_time)/N_steps)          # Calculate best duration and convert to ms
+            return duration
+      
       def __open_page3(self):
             ''' Function to go to page 2'''         
             self.master.destroy()
@@ -1113,6 +1287,47 @@ class GUI4(PARENTGUI):
 
       def __finish(self):
             self.master.destroy()
+
+################# HELP #################################### HELP ############################## HELP ########
+            
+class HELP(SIDESIDE):
+        ''' Class for warnings'''
+        def __init__(self, original,Nr):
+              """Constructor"""
+              SIDESIDE.__init__(self, original)
+              self.Nr=Nr
+              self.main.title("Help Nr. "+ str(self.Nr))#
+              T = Text(self.main, height=10, width=45)
+              T.place(x=20,y=20)
+              ok=self.__warning_handler(T)
+              backbtn = Button(self, text="Back", bg="red",width=8,font="Calibri 20",fg="white",relief="raised",command=lambda:self.__back()).place(x=120,y=220)
+
+        def __back(self):           
+              self.main.destroy()
+              self.show()
+              
+        def __ok(self):
+              self.decision=True
+              self.main.destroy()
+              self.show()
+
+ 
+              
+            
+        def __warning_handler(self,T):
+              if(self.Nr==0):
+                    text="Use the slider to adjust the saturation level\n\n"+"Presh show to show the changes."
+                    T.insert(END,text)
+            
+              if(self.Nr==1):
+                    text="Use the slider to adjust the number of stips."+"\n"+"Note: With more strips you have a higher resolution, but to many may destroy the effekt!"
+                    T.insert(END,text)
+
+              if(self.Nr==2):
+                    text="The reality simulation shows the worst case:\n"+"\n"+"The user does not move the pattern parallel, but with a changing angle!"
+                    T.insert(END,text)
+            
+
 
 ######## WARNING ################### WARNING ################### WARNING ###################
               
