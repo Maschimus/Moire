@@ -168,12 +168,12 @@ class VALUES():
       All other classes will inherit this class ti change the values directely
       '''
             
-      def __init__(self,N=6,png=[],size=[0,0],N_png=0,output_loc="./Output",w_stribes=5,saturation=70):
+      def __init__(self,N=6,png=[],size=[0,0],N_png=0,w_stribes=5,saturation=70):
           self.N=N                                    # Default numbers button
           self.png=[None]*self.N                      # Create Empty list for png
           self.size=size                              # Size of first loaded picture
           self.N_png=N_png                            # Number of loaded png
-          self.output_loc=output_loc                  # Output location
+          self.output_loc=output_loc="./Output"       # Output location
           self.width_stribs_val=w_stribes             # Width of stribe
           self.saturation_val=[saturation]            # Saturation level for each picture binarizing
           self.gif_name='/animated-moire.gif'         # Name of gif
@@ -1133,7 +1133,7 @@ class GUI4(PARENTGUI):
                   window=ERROR(self.master,19)               
 
 
-      def __simulate_human(self,loop=0,N_steps=2,roll_fac=3,max_deg=3):
+      def __simulate_human(self,loop=0,N_steps=2,roll_fac=3,max_deg=2):
                  ''' Simulates imperfect rolling to get the expected result
                         Takes:
                               duration:= Time to diyplay arach file
@@ -1175,6 +1175,9 @@ class GUI4(PARENTGUI):
                                        
                  form=np.zeros([form_width,form_height])+1
 
+                 # Name of reality simulation
+                 self.reality_name="/.reality_animation.gif"
+
                  # Put picture in form
                  form[int(np.floor(x_mis/2)):form_width-int(np.ceil(x_mis/2)),int(np.floor(y_mis/2)):form_height-int(np.ceil(y_mis/2))]=self.values.moire
 
@@ -1208,7 +1211,7 @@ class GUI4(PARENTGUI):
 
                  # save as an animated gif
                  gif = images[0]
-                 gif.save(fp="./Output/reality_check.gif", format='gif', save_all=True, append_images=images[1:],duration=duration,loop=loop)
+                 gif.save(fp=self.values.output_loc+self.reality_name, format='gif', save_all=True, append_images=images[1:],duration=duration,loop=loop)
 
                  # Verify that the number of frames in the gif equals the number of image files and durations
                  if(not(Image.open(gif_filepath).n_frames == len(images))):
@@ -1217,6 +1220,8 @@ class GUI4(PARENTGUI):
                  print("Created GIF")
 
                  # OPEN GIF
+
+                 self.__open_gif(self.reality_name)
 
 
 
@@ -1271,7 +1276,7 @@ class GUI4(PARENTGUI):
                     window=WARNING(self.master,4)
           else:
                 try:
-                  subprocess.run([imageViewerFromCommandLine, self.values.output_loc+self.values.gif_name])
+                  subprocess.run([imageViewerFromCommandLine, self.values.output_loc+name])
                 except IOError:
                       window=WARNING(self.master,4)
                 
